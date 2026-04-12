@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>発注書ワークスペース</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Document Flow</p>
+          <h1>発注からPDF作成、集計までをひとつに。</h1>
+          <p class="lead">
+            宛名や金額を入力すると、発注書PDFを生成して、必要なら電子印影も載せられます。
+            金額はGoogle Spreadsheetにも送れます。
+          </p>
+        </div>
+        <div class="hero-card">
+          <p>このMVPでできること</p>
+          <ul>
+            <li>発注書PDFの自動生成</li>
+            <li>電子印影画像のアップロード</li>
+            <li>Webhook経由でSpreadsheetへ追記</li>
+          </ul>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="panel">
+          <h2>発注情報</h2>
+          <form id="orderForm">
+            <div class="field-grid">
+              <label>
+                <span>案件名 / 書類名</span>
+                <input type="text" name="orderTitle" placeholder="例: Webサイト改修業務" required />
+              </label>
+              <label>
+                <span>発行日</span>
+                <input type="date" name="issueDate" required />
+              </label>
+              <label>
+                <span>納期</span>
+                <input type="date" name="dueDate" />
+              </label>
+              <label>
+                <span>発注金額</span>
+                <input type="number" name="amount" min="0" step="1" placeholder="150000" required />
+              </label>
+              <label>
+                <span>消費税率 (%)</span>
+                <input type="number" name="taxRate" min="0" step="1" value="10" />
+              </label>
+            </div>
+
+            <div class="field-grid">
+              <label>
+                <span>宛先会社名 / 宛名</span>
+                <input type="text" name="clientName" placeholder="株式会社○○ 御中" required />
+              </label>
+              <label>
+                <span>宛先住所</span>
+                <textarea name="clientAddress" rows="3" placeholder="東京都..."></textarea>
+              </label>
+              <label>
+                <span>宛先担当者</span>
+                <textarea name="clientContact" rows="3" placeholder="担当: 山田様 / mail@example.com"></textarea>
+              </label>
+            </div>
+
+            <div class="field-grid">
+              <label>
+                <span>自社名</span>
+                <input type="text" name="yourCompanyName" placeholder="合同会社サンプル" required />
+              </label>
+              <label>
+                <span>自社住所</span>
+                <textarea name="yourCompanyAddress" rows="3"></textarea>
+              </label>
+              <label>
+                <span>自社連絡先</span>
+                <textarea name="yourCompanyContact" rows="3" placeholder="担当者名 / 電話 / メール"></textarea>
+              </label>
+            </div>
+
+            <label>
+              <span>発注内容</span>
+              <textarea name="itemDescription" rows="5" placeholder="制作内容、納品物、条件など" required></textarea>
+            </label>
+
+            <label>
+              <span>備考</span>
+              <textarea name="notes" rows="4" placeholder="支払条件、特記事項など"></textarea>
+            </label>
+
+            <input type="hidden" name="sealImagePath" id="sealImagePath" />
+
+            <div class="actions">
+              <button type="submit">PDFを作成する</button>
+            </div>
+          </form>
+        </section>
+
+        <aside class="stack">
+          <section class="panel">
+            <h2>電子印影</h2>
+            <p class="section-copy">PNGまたはJPGをアップロードすると、PDF右上付近に配置します。</p>
+            <form id="sealForm" class="seal-form">
+              <input type="file" name="sealImage" accept="image/png,image/jpeg" required />
+              <button type="submit">印影をアップロード</button>
+            </form>
+            <div id="sealStatus" class="status muted">まだ印影は登録されていません。</div>
+            <img id="sealPreview" class="seal-preview hidden" alt="印影プレビュー" />
+          </section>
+
+          <section class="panel">
+            <h2>出力結果</h2>
+            <div id="appStatus" class="status">入力後にPDFを作成できます。</div>
+            <a id="pdfLink" class="result-link hidden" target="_blank" rel="noreferrer">作成したPDFを開く</a>
+            <div id="configStatus" class="hint"></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+  </html>
