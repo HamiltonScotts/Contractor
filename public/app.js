@@ -6,13 +6,15 @@ const configStatus = document.getElementById("configStatus");
 const sealPreview = document.getElementById("sealPreview");
 const sealImagePathInput = document.getElementById("sealImagePath");
 const pdfLink = document.getElementById("pdfLink");
+const pdfFrame = document.getElementById("pdfFrame");
+const pdfEmptyState = document.getElementById("pdfEmptyState");
 
 loadConfig();
 seedDates();
 
 sealForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  sealStatus.textContent = "印影をアップロードしています...";
+  setSealStatus("印影をアップロードしています...");
 
   try {
     const formData = new FormData(sealForm);
@@ -27,17 +29,17 @@ sealForm.addEventListener("submit", async (event) => {
     }
 
     sealImagePathInput.value = result.fileName;
-    sealStatus.textContent = `登録済み: ${result.originalName}`;
+    setSealStatus(`登録済み: ${result.originalName}`);
     sealPreview.src = result.url;
     sealPreview.classList.remove("hidden");
   } catch (error) {
-    sealStatus.textContent = error.message;
+    setSealStatus(error.message, true);
   }
 });
 
 orderForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  appStatus.textContent = "PDFを生成しています...";
+  setAppStatus("PDFを生成しています...");
   pdfLink.classList.add("hidden");
 
   try {
@@ -56,11 +58,15 @@ orderForm.addEventListener("submit", async (event) => {
       throw new Error(result.details || result.error || "書類作成に失敗しました。");
     }
 
-    appStatus.textContent = `${result.message} ${result.spreadsheet.message}`;
+    const previewUrl = `${result.pdfUrl}#toolbar=1&navpanes=0&view=FitH&t=${Date.now()}`;
+    setAppStatus(`${result.message} ${result.spreadsheet.message}`);
     pdfLink.href = result.pdfUrl;
     pdfLink.classList.remove("hidden");
+    pdfFrame.src = previewUrl;
+    pdfFrame.classList.remove("hidden");
+    pdfEmptyState.classList.add("hidden");
   } catch (error) {
-    appStatus.textContent = error.message;
+    setAppStatus(error.message, true);
   }
 });
 
@@ -69,8 +75,8 @@ async function loadConfig() {
     const response = await fetch("/api/config");
     const result = await response.json();
     configStatus.textContent = result.spreadsheetWebhookConfigured
-      ? "Spreadsheet連携: Webhook設定あり"
-      : "Spreadsheet連携: Webhook未設定のため、PDF生成のみ有効";
+      ? "Spreadsheet連携: 接続済み"
+      : "Spreadsheet連携: 未設定";
   } catch (_error) {
     configStatus.textContent = "設定の読み込みに失敗しました。";
   }
@@ -82,4 +88,14 @@ function seedDates() {
   if (issueDate && !issueDate.value) {
     issueDate.value = today;
   }
+}
+
+function setAppStatus(message, isError = false) {
+  appStatus.textContent = message;
+  appStatus.classList.toggle("is-error", isError);
+}
+
+function setSealStatus(message, isError = false) {
+  sealStatus.textContent = message;
+  sealStatus.classList.toggle("is-error", isError);
 }

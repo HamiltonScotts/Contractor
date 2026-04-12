@@ -7,122 +7,188 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Document Flow</p>
-          <h1>発注からPDF作成、集計までをひとつに。</h1>
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark">C</div>
+        <div class="brand-copy">
+          <strong>Contractor Workspace</strong>
+          <span>Google Workspace 風の発注ドキュメント管理</span>
+        </div>
+      </div>
+      <nav class="top-nav" aria-label="主要メニュー">
+        <a href="#editor">発注編集</a>
+        <a href="#preview">PDFプレビュー</a>
+        <a href="#automation">連携設定</a>
+      </nav>
+      <div class="header-meta">
+        <span id="configStatus" class="header-status">設定を確認中...</span>
+      </div>
+    </header>
+
+    <main class="workspace-shell">
+      <section class="workspace-intro">
+        <div>
+          <p class="eyebrow">Documents</p>
+          <h1>発注書を編集しながら、右側でPDFを確認できます。</h1>
           <p class="lead">
-            宛名や金額を入力すると、発注書PDFを生成して、必要なら電子印影も載せられます。
-            金額はGoogle Spreadsheetにも送れます。
+            Google Docs や Spreadsheet のように、ヘッダーと作業領域を分けたレイアウトです。
+            左で入力、右で出力結果を確認し、そのまま共有できます。
           </p>
         </div>
-        <div class="hero-card">
-          <p>このMVPでできること</p>
-          <ul>
-            <li>発注書PDFの自動生成</li>
-            <li>電子印影画像のアップロード</li>
-            <li>Webhook経由でSpreadsheetへ追記</li>
-          </ul>
+        <div class="intro-cards">
+          <div class="mini-card">
+            <span class="mini-card-label">書類生成</span>
+            <strong>PDF</strong>
+            <p>発注書をその場で生成</p>
+          </div>
+          <div class="mini-card">
+            <span class="mini-card-label">集計</span>
+            <strong>Sheet</strong>
+            <p>Webhookでスプレッドシートへ追記</p>
+          </div>
+          <div class="mini-card">
+            <span class="mini-card-label">印影</span>
+            <strong>Seal</strong>
+            <p>画像アップロードですぐ反映</p>
+          </div>
         </div>
-      </header>
+      </section>
 
-      <main class="grid">
-        <section class="panel">
-          <h2>発注情報</h2>
-          <form id="orderForm">
-            <div class="field-grid">
-              <label>
-                <span>案件名 / 書類名</span>
-                <input type="text" name="orderTitle" placeholder="例: Webサイト改修業務" required />
-              </label>
-              <label>
-                <span>発行日</span>
-                <input type="date" name="issueDate" required />
-              </label>
-              <label>
-                <span>納期</span>
-                <input type="date" name="dueDate" />
-              </label>
-              <label>
-                <span>発注金額</span>
-                <input type="number" name="amount" min="0" step="1" placeholder="150000" required />
-              </label>
-              <label>
-                <span>消費税率 (%)</span>
-                <input type="number" name="taxRate" min="0" step="1" value="10" />
-              </label>
+      <section class="workspace-grid">
+        <section class="editor-panel" id="editor">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Editor</p>
+              <h2>発注内容を編集</h2>
             </div>
+            <div class="panel-chip">下書き</div>
+          </div>
 
-            <div class="field-grid">
-              <label>
-                <span>宛先会社名 / 宛名</span>
-                <input type="text" name="clientName" placeholder="株式会社○○ 御中" required />
-              </label>
-              <label>
-                <span>宛先住所</span>
-                <textarea name="clientAddress" rows="3" placeholder="東京都..."></textarea>
-              </label>
-              <label>
-                <span>宛先担当者</span>
-                <textarea name="clientContact" rows="3" placeholder="担当: 山田様 / mail@example.com"></textarea>
-              </label>
-            </div>
+          <form id="orderForm" class="editor-form">
+            <section class="form-section">
+              <h3>基本情報</h3>
+              <div class="field-grid two-col">
+                <label>
+                  <span>案件名 / 書類名</span>
+                  <input type="text" name="orderTitle" placeholder="例: Webサイト改修業務" required />
+                </label>
+                <label>
+                  <span>発行日</span>
+                  <input type="date" name="issueDate" required />
+                </label>
+                <label>
+                  <span>納期</span>
+                  <input type="date" name="dueDate" />
+                </label>
+                <label>
+                  <span>発注金額</span>
+                  <input type="number" name="amount" min="0" step="1" placeholder="150000" required />
+                </label>
+                <label>
+                  <span>消費税率 (%)</span>
+                  <input type="number" name="taxRate" min="0" step="1" value="10" />
+                </label>
+              </div>
+            </section>
 
-            <div class="field-grid">
-              <label>
-                <span>自社名</span>
-                <input type="text" name="yourCompanyName" placeholder="合同会社サンプル" required />
-              </label>
-              <label>
-                <span>自社住所</span>
-                <textarea name="yourCompanyAddress" rows="3"></textarea>
-              </label>
-              <label>
-                <span>自社連絡先</span>
-                <textarea name="yourCompanyContact" rows="3" placeholder="担当者名 / 電話 / メール"></textarea>
-              </label>
-            </div>
+            <section class="form-section">
+              <h3>宛先情報</h3>
+              <div class="field-grid two-col">
+                <label class="full-span">
+                  <span>宛先会社名 / 宛名</span>
+                  <input type="text" name="clientName" placeholder="株式会社○○ 御中" required />
+                </label>
+                <label>
+                  <span>宛先住所</span>
+                  <textarea name="clientAddress" rows="4" placeholder="東京都..."></textarea>
+                </label>
+                <label>
+                  <span>宛先担当者</span>
+                  <textarea name="clientContact" rows="4" placeholder="担当: 山田様 / mail@example.com"></textarea>
+                </label>
+              </div>
+            </section>
 
-            <label>
-              <span>発注内容</span>
-              <textarea name="itemDescription" rows="5" placeholder="制作内容、納品物、条件など" required></textarea>
-            </label>
+            <section class="form-section">
+              <h3>発注元情報</h3>
+              <div class="field-grid two-col">
+                <label class="full-span">
+                  <span>自社名</span>
+                  <input type="text" name="yourCompanyName" placeholder="合同会社サンプル" required />
+                </label>
+                <label>
+                  <span>自社住所</span>
+                  <textarea name="yourCompanyAddress" rows="4"></textarea>
+                </label>
+                <label>
+                  <span>自社連絡先</span>
+                  <textarea name="yourCompanyContact" rows="4" placeholder="担当者名 / 電話 / メール"></textarea>
+                </label>
+              </div>
+            </section>
 
-            <label>
-              <span>備考</span>
-              <textarea name="notes" rows="4" placeholder="支払条件、特記事項など"></textarea>
-            </label>
+            <section class="form-section">
+              <h3>ドキュメント内容</h3>
+              <label>
+                <span>発注内容</span>
+                <textarea name="itemDescription" rows="6" placeholder="制作内容、納品物、条件など" required></textarea>
+              </label>
+              <label>
+                <span>備考</span>
+                <textarea name="notes" rows="5" placeholder="支払条件、特記事項など"></textarea>
+              </label>
+            </section>
 
             <input type="hidden" name="sealImagePath" id="sealImagePath" />
 
-            <div class="actions">
-              <button type="submit">PDFを作成する</button>
+            <div class="form-actions">
+              <button type="submit" class="primary-button">PDFを生成する</button>
+              <span id="appStatus" class="inline-status">入力後にPDFを作成できます。</span>
             </div>
           </form>
         </section>
 
-        <aside class="stack">
-          <section class="panel">
-            <h2>電子印影</h2>
-            <p class="section-copy">PNGまたはJPGをアップロードすると、PDF右上付近に配置します。</p>
+        <aside class="preview-column">
+          <section class="side-panel" id="automation">
+            <div class="panel-header compact">
+              <div>
+                <p class="panel-kicker">Assets</p>
+                <h2>電子印影</h2>
+              </div>
+            </div>
+            <p class="section-copy">PNG または JPG を登録すると、PDFに差し込みます。</p>
             <form id="sealForm" class="seal-form">
               <input type="file" name="sealImage" accept="image/png,image/jpeg" required />
-              <button type="submit">印影をアップロード</button>
+              <button type="submit" class="secondary-button">印影をアップロード</button>
             </form>
-            <div id="sealStatus" class="status muted">まだ印影は登録されていません。</div>
+            <div id="sealStatus" class="support-status">まだ印影は登録されていません。</div>
             <img id="sealPreview" class="seal-preview hidden" alt="印影プレビュー" />
           </section>
 
-          <section class="panel">
-            <h2>出力結果</h2>
-            <div id="appStatus" class="status">入力後にPDFを作成できます。</div>
-            <a id="pdfLink" class="result-link hidden" target="_blank" rel="noreferrer">作成したPDFを開く</a>
-            <div id="configStatus" class="hint"></div>
+          <section class="preview-panel" id="preview">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Preview</p>
+                <h2>発注書PDF</h2>
+              </div>
+              <a id="pdfLink" class="preview-link hidden" target="_blank" rel="noreferrer">別タブで開く</a>
+            </div>
+
+            <div class="preview-stage">
+              <div id="pdfEmptyState" class="pdf-empty-state">
+                <strong>PDFはまだ生成されていません。</strong>
+                <p>左のフォームを入力して「PDFを生成する」を押すと、ここにプレビューが表示されます。</p>
+              </div>
+              <iframe
+                id="pdfFrame"
+                class="pdf-frame hidden"
+                title="発注書PDFプレビュー"
+              ></iframe>
+            </div>
           </section>
         </aside>
-      </main>
-    </div>
+      </section>
+    </main>
 
     <script src="/app.js"></script>
   </body>
