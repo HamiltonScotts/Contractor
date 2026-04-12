@@ -40,16 +40,13 @@ sealForm.addEventListener("submit", async (event) => {
 orderForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   setAppStatus("PDFを生成しています...");
-  pdfLink.classList.add("hidden");
 
   try {
     const formData = new FormData(orderForm);
     const payload = Object.fromEntries(formData.entries());
     const response = await fetch("/api/orders", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const result = await response.json();
@@ -59,12 +56,13 @@ orderForm.addEventListener("submit", async (event) => {
     }
 
     const previewUrl = `${result.pdfUrl}#toolbar=1&navpanes=0&view=FitH&t=${Date.now()}`;
-    setAppStatus(`${result.message} ${result.spreadsheet.message}`);
+    setAppStatus(`${result.message} 会計管理ページにも履歴を追加しました。`);
     pdfLink.href = result.pdfUrl;
     pdfLink.classList.remove("hidden");
     pdfFrame.src = previewUrl;
     pdfFrame.classList.remove("hidden");
     pdfEmptyState.classList.add("hidden");
+    loadConfig();
   } catch (error) {
     setAppStatus(error.message, true);
   }
@@ -74,9 +72,7 @@ async function loadConfig() {
   try {
     const response = await fetch("/api/config");
     const result = await response.json();
-    configStatus.textContent = result.spreadsheetWebhookConfigured
-      ? "Spreadsheet連携: 接続済み"
-      : "Spreadsheet連携: 未設定";
+    configStatus.textContent = `履歴 ${result.totalOrders}件`;
   } catch (_error) {
     configStatus.textContent = "設定の読み込みに失敗しました。";
   }

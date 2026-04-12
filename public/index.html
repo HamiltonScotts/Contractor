@@ -3,72 +3,66 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>発注書ワークスペース</title>
+    <title>Contractor Workspace</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header class="app-header">
-      <div class="brand">
-        <div class="brand-mark">C</div>
-        <div class="brand-copy">
-          <strong>Contractor Workspace</strong>
-          <span>Google Workspace 風の発注ドキュメント管理</span>
+    <header class="app-shell-header">
+      <div class="app-shell-brand">
+        <div class="brand-symbol">C</div>
+        <div>
+          <div class="brand-title">Contractor Workspace</div>
+          <div class="brand-subtitle">Document Composer</div>
         </div>
       </div>
-      <nav class="top-nav" aria-label="主要メニュー">
-        <a href="#editor">発注編集</a>
-        <a href="#preview">PDFプレビュー</a>
-        <a href="#automation">連携設定</a>
+      <nav class="shell-nav">
+        <a class="is-active" href="/">発注作成</a>
+        <a href="/accounting.html">会計管理</a>
       </nav>
-      <div class="header-meta">
-        <span id="configStatus" class="header-status">設定を確認中...</span>
-      </div>
+      <div id="configStatus" class="shell-badge">履歴を読み込み中...</div>
     </header>
 
-    <main class="workspace-shell">
-      <section class="workspace-intro">
-        <div>
-          <p class="eyebrow">Documents</p>
-          <h1>発注書を編集しながら、右側でPDFを確認できます。</h1>
-          <p class="lead">
-            Google Docs や Spreadsheet のように、ヘッダーと作業領域を分けたレイアウトです。
-            左で入力、右で出力結果を確認し、そのまま共有できます。
+    <main class="page-layout">
+      <section class="hero-strip">
+        <div class="hero-copy">
+          <p class="section-label">Order Documents</p>
+          <h1>発注書を整えて、その場で契約書PDFまで確認。</h1>
+          <p>
+            Appleのプロダクトページのように、余白と情報の粒度を整えた画面です。
+            左で内容を編集し、右でPDFプレビューを確認できます。
           </p>
         </div>
-        <div class="intro-cards">
-          <div class="mini-card">
-            <span class="mini-card-label">書類生成</span>
+        <div class="hero-metrics">
+          <div class="metric-card">
+            <span>履歴管理</span>
+            <strong>Orders</strong>
+          </div>
+          <div class="metric-card">
+            <span>書き出し</span>
+            <strong>Excel</strong>
+          </div>
+          <div class="metric-card">
+            <span>ドキュメント</span>
             <strong>PDF</strong>
-            <p>発注書をその場で生成</p>
-          </div>
-          <div class="mini-card">
-            <span class="mini-card-label">集計</span>
-            <strong>Sheet</strong>
-            <p>Webhookでスプレッドシートへ追記</p>
-          </div>
-          <div class="mini-card">
-            <span class="mini-card-label">印影</span>
-            <strong>Seal</strong>
-            <p>画像アップロードですぐ反映</p>
           </div>
         </div>
       </section>
 
-      <section class="workspace-grid">
-        <section class="editor-panel" id="editor">
-          <div class="panel-header">
+      <section class="content-grid">
+        <section class="content-panel editor-panel">
+          <div class="panel-bar">
             <div>
-              <p class="panel-kicker">Editor</p>
-              <h2>発注内容を編集</h2>
+              <p class="section-label">Editor</p>
+              <h2>発注書の入力</h2>
             </div>
-            <div class="panel-chip">下書き</div>
+            <span class="status-pill">Draft</span>
           </div>
 
-          <form id="orderForm" class="editor-form">
-            <section class="form-section">
+          <form id="orderForm" class="form-stack">
+            <section class="form-block">
               <h3>基本情報</h3>
-              <div class="field-grid two-col">
-                <label>
+              <div class="input-grid two-column">
+                <label class="full-width">
                   <span>案件名 / 書類名</span>
                   <input type="text" name="orderTitle" placeholder="例: Webサイト改修業務" required />
                 </label>
@@ -91,10 +85,10 @@
               </div>
             </section>
 
-            <section class="form-section">
-              <h3>宛先情報</h3>
-              <div class="field-grid two-col">
-                <label class="full-span">
+            <section class="form-block">
+              <h3>宛先</h3>
+              <div class="input-grid two-column">
+                <label class="full-width">
                   <span>宛先会社名 / 宛名</span>
                   <input type="text" name="clientName" placeholder="株式会社○○ 御中" required />
                 </label>
@@ -109,10 +103,10 @@
               </div>
             </section>
 
-            <section class="form-section">
-              <h3>発注元情報</h3>
-              <div class="field-grid two-col">
-                <label class="full-span">
+            <section class="form-block">
+              <h3>発注元</h3>
+              <div class="input-grid two-column">
+                <label class="full-width">
                   <span>自社名</span>
                   <input type="text" name="yourCompanyName" placeholder="合同会社サンプル" required />
                 </label>
@@ -127,8 +121,8 @@
               </div>
             </section>
 
-            <section class="form-section">
-              <h3>ドキュメント内容</h3>
+            <section class="form-block">
+              <h3>内容</h3>
               <label>
                 <span>発注内容</span>
                 <textarea name="itemDescription" rows="6" placeholder="制作内容、納品物、条件など" required></textarea>
@@ -141,49 +135,44 @@
 
             <input type="hidden" name="sealImagePath" id="sealImagePath" />
 
-            <div class="form-actions">
-              <button type="submit" class="primary-button">PDFを生成する</button>
-              <span id="appStatus" class="inline-status">入力後にPDFを作成できます。</span>
+            <div class="action-row">
+              <button type="submit" class="button-primary">PDFを生成する</button>
+              <span id="appStatus" class="inline-note">入力後にPDFを作成できます。</span>
             </div>
           </form>
         </section>
 
-        <aside class="preview-column">
-          <section class="side-panel" id="automation">
-            <div class="panel-header compact">
+        <aside class="content-side">
+          <section class="content-panel side-panel">
+            <div class="panel-bar">
               <div>
-                <p class="panel-kicker">Assets</p>
+                <p class="section-label">Assets</p>
                 <h2>電子印影</h2>
               </div>
             </div>
-            <p class="section-copy">PNG または JPG を登録すると、PDFに差し込みます。</p>
-            <form id="sealForm" class="seal-form">
+            <p class="panel-copy">PNG または JPG を登録すると、PDFへ差し込みます。</p>
+            <form id="sealForm" class="form-stack compact">
               <input type="file" name="sealImage" accept="image/png,image/jpeg" required />
-              <button type="submit" class="secondary-button">印影をアップロード</button>
+              <button type="submit" class="button-secondary">印影をアップロード</button>
             </form>
-            <div id="sealStatus" class="support-status">まだ印影は登録されていません。</div>
+            <div id="sealStatus" class="inline-note pad-x">まだ印影は登録されていません。</div>
             <img id="sealPreview" class="seal-preview hidden" alt="印影プレビュー" />
           </section>
 
-          <section class="preview-panel" id="preview">
-            <div class="panel-header">
+          <section class="content-panel preview-panel">
+            <div class="panel-bar">
               <div>
-                <p class="panel-kicker">Preview</p>
+                <p class="section-label">Preview</p>
                 <h2>発注書PDF</h2>
               </div>
-              <a id="pdfLink" class="preview-link hidden" target="_blank" rel="noreferrer">別タブで開く</a>
+              <a id="pdfLink" class="text-link hidden" target="_blank" rel="noreferrer">別タブで開く</a>
             </div>
-
-            <div class="preview-stage">
-              <div id="pdfEmptyState" class="pdf-empty-state">
+            <div class="preview-canvas">
+              <div id="pdfEmptyState" class="empty-state">
                 <strong>PDFはまだ生成されていません。</strong>
-                <p>左のフォームを入力して「PDFを生成する」を押すと、ここにプレビューが表示されます。</p>
+                <p>左のフォームを入力して生成すると、ここにプレビューが表示されます。</p>
               </div>
-              <iframe
-                id="pdfFrame"
-                class="pdf-frame hidden"
-                title="発注書PDFプレビュー"
-              ></iframe>
+              <iframe id="pdfFrame" class="pdf-frame hidden" title="発注書PDFプレビュー"></iframe>
             </div>
           </section>
         </aside>

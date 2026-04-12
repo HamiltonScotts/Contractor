@@ -4,12 +4,14 @@ const fs = require("fs");
 const path = require("path");
 const { PDFDocument, rgb } = require("pdf-lib");
 const fontkit = require("@pdf-lib/fontkit");
+const XLSX = require("xlsx");
 
 const app = express();
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || "0.0.0.0";
-const uploadDir = resolveUploadDir();
-const spreadsheetWebhookUrl = process.env.SPREADSHEET_WEBHOOK_URL || "";
+const uploadDir = resolveWritableDir("uploads");
+const dataDir = resolveWritableDir("data");
+const orderStorePath = path.join(dataDir, "orders.json");
 const fontCandidates = [
   process.env.PDF_FONT_PATH,
   path.join(__dirname, "fonts", "NotoSansJP-Regular.ttf"),
@@ -20,6 +22,8 @@ const fontCandidates = [
   "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
   "/System/Library/Fonts/Hiragino Sans GB.ttc",
 ].filter(Boolean);
+
+ensureStoreFile();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
@@ -34,7 +38,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(uploadDir));
 
@@ -42,13 +46,16 @@ app.get("/healthz", (_req, res) => {
   res.status(200).json({
     ok: true,
     uploadDir,
-    spreadsheetWebhookConfigured: Boolean(spreadsheetWebhookUrl),
+    dataDir,
+    orders: readOrders().length,
   });
 });
 
 app.get("/api/config", (_req, res) => {
   res.json({
-    spreadsheetWebhookConfigured: Boolean(spreadsheetWebhookUrl),
+    accountingEnabled: true,
+    excelExportEnabled: true,
+    totalOrders: readOrders().length,
   });
 });
 
@@ -64,21 +71,34 @@ app.post("/api/seal", upload.single("sealImage"), (req, res) => {
   });
 });
 
-app.post("/api/orders", express.json({ limit: "1mb" }), async (req, res) => {
+app.post("/api/orders", async (req, res) => {
   try {
     const payload = sanitizePayload(req.body || {});
-    const pdfBytes = await createOrderPdf(payload);
-    const pdfFileName = `purchase-order-${Date.now()}.pdf`;
-    const pdfPath = path.join(uploadDir, pdfFileName);
+    validateOrderPayload(payload);
 
+    const pdfBytes = await createOrderPdf(payload);
+    const timestamp = Date.now();
+    const pdfFileName = `purchase-order-${timestamp}.pdf`;
+    const pdfPath = path.join(uploadDir, pdfFileName);
     fs.writeFileSync(pdfPath, pdfBytes);
 
-    const spreadsheetResult = await appendToSpreadsheet(payload);
+    const orderRecord = {
+      id: `ord_${timestamp}`,
+      createdAt: new Date().toISOString(),
+      ...payload,
+      pdfFileName,
+      pdfUrl: `/uploads/${pdfFileName}`,
+      sealImageUrl: payload.sealImageFileName ? `/uploads/${payload.sealImageFileName}` : "",
+    };
+
+    const orders = readOrders();
+    orders.unshift(orderRecord);
+    writeOrders(orders);
 
     res.json({
       message: "発注書を作成しました。",
-      pdfUrl: `/uploads/${pdfFileName}`,
-      spreadsheet: spreadsheetResult,
+      pdfUrl: orderRecord.pdfUrl,
+      order: summarizeOrder(orderRecord),
     });
   } catch (error) {
     console.error(error);
@@ -89,8 +109,66 @@ app.post("/api/orders", express.json({ limit: "1mb" }), async (req, res) => {
   }
 });
 
+app.get("/api/orders", (req, res) => {
+  const { from = "", to = "" } = req.query;
+  const orders = filterOrdersByPeriod(readOrders(), String(from), String(to));
+
+  res.json({
+    summary: buildSummary(orders),
+    orders: orders.map(summarizeOrder),
+  });
+});
+
+app.get("/api/orders/export", (req, res) => {
+  const { from = "", to = "" } = req.query;
+  const orders = filterOrdersByPeriod(readOrders(), String(from), String(to));
+  const workbook = XLSX.utils.book_new();
+  const rows = orders.map((order) => ({
+    発行日: order.issueDate,
+    納期: order.dueDate,
+    案件名: order.orderTitle,
+    宛先: order.clientName,
+    発注元: order.yourCompanyName,
+    金額: order.amount,
+    消費税率: order.taxRate,
+    発注内容: order.itemDescription,
+    備考: order.notes,
+    PDF_URL: order.pdfUrl,
+    作成日時: order.createdAt,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(rows.length ? rows : [{
+    発行日: "",
+    納期: "",
+    案件名: "該当データなし",
+    宛先: "",
+    発注元: "",
+    金額: "",
+    消費税率: "",
+    発注内容: "",
+    備考: "",
+    PDF_URL: "",
+    作成日時: "",
+  }]);
+
+  worksheet["!cols"] = [
+    { wch: 12 }, { wch: 12 }, { wch: 24 }, { wch: 22 }, { wch: 22 },
+    { wch: 12 }, { wch: 10 }, { wch: 36 }, { wch: 28 }, { wch: 42 }, { wch: 22 },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+  const fileName = `orders-${from || "all"}-${to || "latest"}.xlsx`;
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  res.send(buffer);
+});
+
 function sanitizePayload(body) {
   const amount = Number(body.amount || 0);
+  const taxRate = Number(body.taxRate || 10);
+  const sealImageFileName = body.sealImagePath ? path.basename(String(body.sealImagePath)) : "";
 
   return {
     orderTitle: String(body.orderTitle || "").trim(),
@@ -102,18 +180,92 @@ function sanitizePayload(body) {
     yourCompanyName: String(body.yourCompanyName || "").trim(),
     yourCompanyAddress: String(body.yourCompanyAddress || "").trim(),
     yourCompanyContact: String(body.yourCompanyContact || "").trim(),
-    amount,
-    taxRate: Number(body.taxRate || 10),
+    amount: Number.isFinite(amount) ? amount : 0,
+    taxRate: Number.isFinite(taxRate) ? taxRate : 10,
     itemDescription: String(body.itemDescription || "").trim(),
     notes: String(body.notes || "").trim(),
-    sealImagePath: body.sealImagePath ? path.join(uploadDir, path.basename(String(body.sealImagePath))) : "",
+    sealImageFileName,
+    sealImagePath: sealImageFileName ? path.join(uploadDir, sealImageFileName) : "",
   };
 }
 
-function resolveUploadDir() {
+function validateOrderPayload(payload) {
+  if (!payload.orderTitle || !payload.clientName || !payload.yourCompanyName) {
+    throw new Error("必須項目が不足しています。");
+  }
+  if (!payload.issueDate) {
+    throw new Error("発行日を入力してください。");
+  }
+}
+
+function ensureStoreFile() {
+  if (!fs.existsSync(orderStorePath)) {
+    fs.writeFileSync(orderStorePath, "[]");
+  }
+}
+
+function readOrders() {
+  ensureStoreFile();
+  try {
+    const raw = fs.readFileSync(orderStorePath, "utf8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function writeOrders(orders) {
+  fs.writeFileSync(orderStorePath, JSON.stringify(orders, null, 2));
+}
+
+function filterOrdersByPeriod(orders, from, to) {
+  return orders.filter((order) => {
+    const issueDate = order.issueDate || "";
+    if (from && issueDate < from) {
+      return false;
+    }
+    if (to && issueDate > to) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function buildSummary(orders) {
+  const totalAmount = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+  const avgAmount = orders.length ? Math.round(totalAmount / orders.length) : 0;
+  const latestOrder = orders[0] || null;
+
+  return {
+    count: orders.length,
+    totalAmount,
+    avgAmount,
+    latestIssueDate: latestOrder ? latestOrder.issueDate : "",
+  };
+}
+
+function summarizeOrder(order) {
+  return {
+    id: order.id,
+    orderTitle: order.orderTitle,
+    issueDate: order.issueDate,
+    dueDate: order.dueDate,
+    clientName: order.clientName,
+    yourCompanyName: order.yourCompanyName,
+    amount: order.amount,
+    taxRate: order.taxRate,
+    itemDescription: order.itemDescription,
+    notes: order.notes,
+    pdfUrl: order.pdfUrl,
+    createdAt: order.createdAt,
+  };
+}
+
+function resolveWritableDir(name) {
   const candidates = [
-    path.join(__dirname, "uploads"),
-    path.join("/tmp", "gemini_test_uploads"),
+    path.join(__dirname, name),
+    path.join("/tmp", `gemini_test_${name}`),
   ];
 
   for (const candidate of candidates) {
@@ -127,7 +279,7 @@ function resolveUploadDir() {
     }
   }
 
-  throw new Error("保存先ディレクトリを作成できませんでした。空き容量を確認してください。");
+  throw new Error(`保存先ディレクトリ ${name} を作成できませんでした。`);
 }
 
 async function createOrderPdf(data) {
@@ -141,10 +293,10 @@ async function createOrderPdf(data) {
 
   page.drawRectangle({
     x: 0,
-    y: height - 120,
+    y: height - 122,
     width,
-    height: 120,
-    color: rgb(0.08, 0.18, 0.32),
+    height: 122,
+    color: rgb(0.11, 0.12, 0.14),
   });
 
   page.drawText("発注書", {
@@ -155,12 +307,12 @@ async function createOrderPdf(data) {
     color: rgb(1, 1, 1),
   });
 
-  page.drawText(data.orderTitle || "業務委託 / 制作発注", {
+  page.drawText(data.orderTitle || "業務発注", {
     x: margin,
     y: height - 102,
     size: 12,
     font,
-    color: rgb(0.9, 0.94, 1),
+    color: rgb(0.8, 0.83, 0.88),
   });
 
   drawLabelValue(page, font, "発行日", data.issueDate || "-", margin, height - 165);
@@ -171,7 +323,7 @@ async function createOrderPdf(data) {
     y: height - 220,
     size: 11,
     font,
-    color: rgb(0.35, 0.38, 0.42),
+    color: rgb(0.42, 0.45, 0.5),
   });
   page.drawText(data.clientName || "-", {
     x: margin,
@@ -188,7 +340,7 @@ async function createOrderPdf(data) {
     y: height - 220,
     size: 11,
     font,
-    color: rgb(0.35, 0.38, 0.42),
+    color: rgb(0.42, 0.45, 0.5),
   });
   page.drawText(data.yourCompanyName || "-", {
     x: 330,
@@ -205,8 +357,8 @@ async function createOrderPdf(data) {
     y: height - 420,
     width: width - margin * 2,
     height: 90,
-    color: rgb(0.96, 0.97, 0.99),
-    borderColor: rgb(0.8, 0.84, 0.9),
+    color: rgb(0.97, 0.97, 0.98),
+    borderColor: rgb(0.85, 0.87, 0.9),
     borderWidth: 1,
   });
 
@@ -215,14 +367,14 @@ async function createOrderPdf(data) {
     y: height - 360,
     size: 12,
     font,
-    color: rgb(0.35, 0.38, 0.42),
+    color: rgb(0.42, 0.45, 0.5),
   });
   page.drawText(formatCurrency(data.amount), {
     x: margin + 20,
     y: height - 392,
     size: 26,
     font: fontBold,
-    color: rgb(0.08, 0.18, 0.32),
+    color: rgb(0.1, 0.12, 0.15),
   });
 
   page.drawText(`消費税率: ${data.taxRate}%`, {
@@ -230,7 +382,7 @@ async function createOrderPdf(data) {
     y: height - 360,
     size: 11,
     font,
-    color: rgb(0.35, 0.38, 0.42),
+    color: rgb(0.42, 0.45, 0.5),
   });
 
   page.drawRectangle({
@@ -239,7 +391,7 @@ async function createOrderPdf(data) {
     width: width - margin * 2,
     height: 150,
     color: rgb(1, 1, 1),
-    borderColor: rgb(0.8, 0.84, 0.9),
+    borderColor: rgb(0.85, 0.87, 0.9),
     borderWidth: 1,
   });
 
@@ -258,7 +410,7 @@ async function createOrderPdf(data) {
     width: width - margin * 2,
     height: 120,
     color: rgb(1, 1, 1),
-    borderColor: rgb(0.8, 0.84, 0.9),
+    borderColor: rgb(0.85, 0.87, 0.9),
     borderWidth: 1,
   });
   page.drawText("備考", {
@@ -273,9 +425,7 @@ async function createOrderPdf(data) {
   if (data.sealImagePath && fs.existsSync(data.sealImagePath)) {
     const imageBytes = fs.readFileSync(data.sealImagePath);
     const extension = path.extname(data.sealImagePath).toLowerCase();
-    const sealImage = extension === ".png"
-      ? await pdfDoc.embedPng(imageBytes)
-      : await pdfDoc.embedJpg(imageBytes);
+    const sealImage = extension === ".png" ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
     const imageDims = sealImage.scale(0.22);
 
     page.drawImage(sealImage, {
@@ -283,7 +433,7 @@ async function createOrderPdf(data) {
       y: height - 315,
       width: imageDims.width,
       height: imageDims.height,
-      opacity: 0.82,
+      opacity: 0.8,
     });
   }
 
@@ -306,7 +456,7 @@ function drawLabelValue(page, font, label, value, x, y) {
     y,
     size: 11,
     font,
-    color: rgb(0.35, 0.38, 0.42),
+    color: rgb(0.42, 0.45, 0.5),
   });
   page.drawText(value, {
     x,
@@ -358,41 +508,6 @@ function formatCurrency(amount) {
   }).format(Number.isFinite(amount) ? amount : 0);
 }
 
-async function appendToSpreadsheet(data) {
-  if (!spreadsheetWebhookUrl) {
-    return {
-      status: "skipped",
-      message: "Webhook URL未設定のため、スプレッドシート追記はスキップしました。",
-    };
-  }
-
-  const response = await fetch(spreadsheetWebhookUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      issueDate: data.issueDate,
-      dueDate: data.dueDate,
-      orderTitle: data.orderTitle,
-      clientName: data.clientName,
-      amount: data.amount,
-      taxRate: data.taxRate,
-      itemDescription: data.itemDescription,
-      notes: data.notes,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`スプレッドシート連携に失敗しました: ${response.status}`);
-  }
-
-  return {
-    status: "ok",
-    message: "スプレッドシートへ追記しました。",
-  };
-}
-
 if (require.main === module) {
   app.listen(port, host, () => {
     console.log(`Server started on http://${host}:${port}`);
@@ -403,5 +518,6 @@ module.exports = {
   app,
   createOrderPdf,
   sanitizePayload,
-  resolveUploadDir,
+  resolveWritableDir,
+  readOrders,
 };

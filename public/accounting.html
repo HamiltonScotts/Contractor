@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>会計管理 | Contractor Workspace</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="app-shell-header">
+      <div class="app-shell-brand">
+        <div class="brand-symbol">C</div>
+        <div>
+          <div class="brand-title">Contractor Workspace</div>
+          <div class="brand-subtitle">Accounting Console</div>
+        </div>
+      </div>
+      <nav class="shell-nav">
+        <a href="/">発注作成</a>
+        <a class="is-active" href="/accounting.html">会計管理</a>
+      </nav>
+      <div class="shell-badge">Financial Overview</div>
+    </header>
+
+    <main class="page-layout">
+      <section class="hero-strip">
+        <div class="hero-copy">
+          <p class="section-label">Accounting</p>
+          <h1>発注額、契約書履歴、Excel出力をひとつの画面で。</h1>
+          <p>期間を指定して発注履歴を絞り込み、そのままExcelに書き出せます。過去の契約書PDFも一覧から確認できます。</p>
+        </div>
+      </section>
+
+      <section class="content-panel accounting-controls">
+        <div class="panel-bar">
+          <div>
+            <p class="section-label">Filters</p>
+            <h2>期間指定</h2>
+          </div>
+        </div>
+        <form id="filterForm" class="filters-grid">
+          <label>
+            <span>開始日</span>
+            <input type="date" id="fromDate" name="fromDate" />
+          </label>
+          <label>
+            <span>終了日</span>
+            <input type="date" id="toDate" name="toDate" />
+          </label>
+          <div class="filter-actions">
+            <button type="submit" class="button-primary">絞り込む</button>
+            <button type="button" id="exportButton" class="button-secondary">Excelを書き出す</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="stats-grid">
+        <article class="content-panel stat-card">
+          <span>総発注額</span>
+          <strong id="totalAmount">¥0</strong>
+        </article>
+        <article class="content-panel stat-card">
+          <span>発注件数</span>
+          <strong id="totalCount">0</strong>
+        </article>
+        <article class="content-panel stat-card">
+          <span>平均発注額</span>
+          <strong id="avgAmount">¥0</strong>
+        </article>
+        <article class="content-panel stat-card">
+          <span>最新発行日</span>
+          <strong id="latestIssueDate">-</strong>
+        </article>
+      </section>
+
+      <section class="content-panel ledger-panel">
+        <div class="panel-bar">
+          <div>
+            <p class="section-label">Contracts</p>
+            <h2>契約書 / 発注書一覧</h2>
+          </div>
+          <div id="tableStatus" class="shell-badge">読み込み中...</div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>発行日</th>
+                <th>案件名</th>
+                <th>宛先</th>
+                <th>発注元</th>
+                <th>金額</th>
+                <th>書類</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="/accounting.js"></script>
+  </body>
+  </html>
