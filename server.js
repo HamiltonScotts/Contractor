@@ -1,4 +1,6 @@
 const express = require("express");
+const crypto = require("crypto");
+const { requireAuth } = require("./auth");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
@@ -25,31 +27,16 @@ const fontCandidates = [
 
 ensureStoreFile();
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const safeName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    cb(null, safeName);
-  },
-});
+// Keep uploads in memory until the signature has been verified; never serve attacker-supplied filenames.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
+// Only the platform health probe is public; it must not disclose filesystem paths or business data.
+app.get("/healthz", (_req, res) => res.status(200).json({ ok: true }));
+app.use(requireAuth);
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(uploadDir));
-
-app.get("/healthz", (_req, res) => {
-  res.status(200).json({
-    ok: true,
-    uploadDir,
-    dataDir,
-    orders: readOrders().length,
-  });
-});
 
 app.get("/api/config", (_req, res) => {
   res.json({
@@ -60,14 +47,20 @@ app.get("/api/config", (_req, res) => {
 });
 
 app.post("/api/seal", upload.single("sealImage"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "印影画像を選択してください。" });
-  }
+  if (!req.file) return res.status(400).json({ error: "印影画像を選択してください。" });
 
+  // File extension and Content-Type are untrusted. Accept only actual PNG/JPEG bytes.
+  const bytes = req.file.buffer;
+  const isPng = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (!isPng && !isJpeg) return res.status(415).json({ error: "PNGまたはJPEG画像を選択してください。" });
+
+  const fileName = `seal-${crypto.randomUUID()}.${isPng ? "png" : "jpg"}`;
+  fs.writeFileSync(path.join(uploadDir, fileName), bytes, { flag: "wx" });
   res.json({
-    fileName: req.file.filename,
+    fileName,
     originalName: req.file.originalname,
-    url: `/uploads/${req.file.filename}`,
+    url: `/uploads/${fileName}`,
   });
 });
 
