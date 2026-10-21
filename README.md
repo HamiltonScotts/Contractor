@@ -9,11 +9,22 @@
 - 発注書PDFの自動生成
 - Google Apps ScriptのWebhook経由でSpreadsheetへ金額を追記
 
+## セキュリティ / 本番デプロイ前の必須設定
+
+このアプリは発注者情報・金額・PDF・電子印影を扱うため、**アクセス認証が必須**です。GitHubの公開・非公開設定とサイトのアクセス制御は別です。
+
+- ホスティングの環境変数に `APP_USERNAME` と長いランダムな `APP_PASSWORD` を**両方**設定します。Renderの場合は Service → Environment で登録し、再デプロイしてください。
+- パスワードの作成例：`openssl rand -hex 32`。GitHub、README、ブラウザー側ソースには絶対に本番パスワードを書かないでください。
+- 未設定の場合、アプリは 503（fail-closed）で停止します（`/healthz` のみ公開）。
+- ブラウザーでURLを開くとBasic認証ダイアログが出ます。**必ずHTTPS**でアクセスしてください。
+- 過去に公開状態で運用していた場合、既存のPDF・印影・発注情報が第三者に見られていないかホスティングのアクセスログを確認してください。
+- 印影アップロードは実際の画像シグネチャを確認し、推測困難なランダム名で保存します。
+
 ## ローカル起動
 
 ```bash
 npm install
-npm start
+APP_USERNAME=local APP_PASSWORD=local-only-change-me npm start
 ```
 
 ブラウザで `http://localhost:3000` を開いてください。
@@ -27,7 +38,7 @@ npm start
 1. GitHubにこのリポジトリをpush
 2. Renderで `New +` → `Blueprint`
 3. リポジトリを接続
-4. 環境変数 `SPREADSHEET_WEBHOOK_URL` を設定
+4. 環境変数 `APP_USERNAME` と `APP_PASSWORD` を必ず設定（Spreadsheet連携する場合のみ `SPREADSHEET_WEBHOOK_URL` も設定）
 5. デプロイ完了後、発行されたURLを共有
 
 コンテナ内で `fonts-noto-cjk` を入れるため、Linux環境でも日本語PDFを生成できます。
